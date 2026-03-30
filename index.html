@@ -3,38 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iNetwork Solutions | Advanced Service Dashboard</title>
+    <title>iNetwork Solutions | Secure Login</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root { --neon: #00d4ff; --bg: #050a14; --card: #111827; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .wrapper { width: 100%; max-width: 850px; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; }
         
-        .branding { text-align: center; margin-bottom: 25px; }
-        .logo { font-size: 32px; font-weight: 900; background: linear-gradient(90deg, #00d4ff, #0055ff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase; letter-spacing: 2px; }
-        .sub-logo { font-size: 14px; color: #64748b; letter-spacing: 3px; margin-top: 5px; }
+        /* Login Styles */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .login-box {
+            background: var(--card); padding: 40px; border-radius: 20px; 
+            border: 1px solid var(--neon); box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+            width: 100%; max-width: 350px; text-align: center;
+        }
 
-        /* Dashboard Stats */
+        /* Existing Styles */
+        .wrapper { width: 100%; max-width: 850px; display: none; } /* Hidden by default */
+        .branding { text-align: center; margin-bottom: 25px; }
+        .logo { font-size: 32px; font-weight: 900; background: linear-gradient(90deg, #00d4ff, #0055ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase; letter-spacing: 2px; }
+        .sub-logo { font-size: 14px; color: #64748b; letter-spacing: 3px; margin-top: 5px; }
         .dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 25px; }
         .stat-card { background: var(--card); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
         .stat-card h4 { margin: 0; font-size: 10px; color: #94a3b8; text-transform: uppercase; }
         .stat-card p { margin: 8px 0 0 0; font-size: 20px; font-weight: bold; color: var(--neon); }
-
         .panel { background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
         h3 { margin-top: 0; font-size: 16px; color: var(--neon); border-bottom: 1px solid #334155; padding-bottom: 10px; text-transform: uppercase; }
-        
         input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; font-size: 14px; box-sizing: border-box; }
         input, select { background: #1f2937; color: white; border: 1px solid #334155; }
-        
         .btn-add { background: linear-gradient(45deg, #00d4ff, #0055ff); color: white; font-weight: bold; cursor: pointer; }
         .btn-repair { background: var(--danger); color: white; font-weight: bold; cursor: pointer; }
         .btn-in { background: var(--success); color: white; font-weight: bold; cursor: pointer; }
-
         #reader { width: 100%; border-radius: 10px; margin-bottom: 10px; overflow: hidden; border: 1px solid var(--neon); }
-        
         .history-box { background: #0f172a; padding: 15px; border-radius: 10px; border-left: 4px solid var(--neon); display: none; margin-top: 10px; }
         .log-entry { font-size: 12px; padding: 8px; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
-        
         .badge { padding: 3px 8px; border-radius: 15px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
         .st-active { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
         .st-repair { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
@@ -42,10 +46,22 @@
 </head>
 <body>
 
-<div class="wrapper">
+<div id="loginOverlay">
+    <div class="login-box">
+        <div class="logo" style="font-size: 24px;">iNETWORK</div>
+        <p style="color: #64748b; font-size: 12px; margin-bottom: 20px;">SECURITY ACCESS REQUIRED</p>
+        <input type="text" id="userInput" placeholder="Username">
+        <input type="password" id="passInput" placeholder="Password">
+        <button class="btn-add" onclick="validateLogin()">UNLOCK DASHBOARD</button>
+        <p id="loginError" style="color: var(--danger); font-size: 12px; display: none;">Invalid Credentials!</p>
+    </div>
+</div>
+
+<div class="wrapper" id="mainDashboard">
     <div class="branding">
         <div class="logo">iNETWORK SOLUTIONS PRIVATE LIMITED</div>
         <div class="sub-logo">Advanced Server Dashboard</div>
+        <button onclick="logout()" style="width: auto; padding: 5px 15px; font-size: 10px; background: transparent; color: #64748b; border: 1px solid #334155; cursor: pointer; margin-top: 10px;">LOGOUT</button>
     </div>
 
     <div class="dashboard">
@@ -99,6 +115,37 @@
 </div>
 
 <script>
+    // --- LOGIN LOGIC ---
+    function validateLogin() {
+        const u = document.getElementById('userInput').value;
+        const p = document.getElementById('passInput').value;
+        const error = document.getElementById('loginError');
+
+        if(u === "ins" && p === "2002") {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('mainDashboard').style.display = 'block';
+            sessionStorage.setItem('isLoggedIn', 'true');
+            updateStats();
+        } else {
+            error.style.display = 'block';
+        }
+    }
+
+    function logout() {
+        sessionStorage.removeItem('isLoggedIn');
+        location.reload();
+    }
+
+    // Check session on load
+    window.onload = () => {
+        if(sessionStorage.getItem('isLoggedIn') === 'true') {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('mainDashboard').style.display = 'block';
+            updateStats();
+        }
+    }
+
+    // --- YOUR ORIGINAL LOGIC ---
     let db = JSON.parse(localStorage.getItem('ins_advanced_db')) || [];
 
     function registerProduct() {
@@ -106,13 +153,10 @@
         let model = document.getElementById('regModel').value.trim();
         let date = document.getElementById('regDate').value;
         let term = parseFloat(document.getElementById('regTerm').value);
-
         if(!sn || !model || !date) return alert("Please fill all details!");
         if(db.find(x => x.sn === sn)) return alert("This Serial Number is already registered!");
-
         let expiry = new Date(date);
         expiry.setMonth(expiry.getMonth() + (term * 12));
-
         db.push({ sn, model, installDate: date, expiry: expiry.toISOString(), status: 'Active', logs: [] });
         save();
         alert("Product Added Successfully!");
@@ -125,15 +169,13 @@
             res.style.display = "block";
             let days = Math.ceil((new Date(item.expiry) - new Date()) / (1000*60*60*24));
             let logsHtml = item.logs.length > 0 ? item.logs.map(l => `<div class="log-entry"><b>Issue:</b> ${l.issue}<br><b>Sent:</b> ${l.sent} | <b>Back:</b> ${l.back}</div>`).join('') : 'No Service History.';
-            
             res.innerHTML = `
                 <div style="margin-bottom:10px;"><b style="color:var(--neon)">Product:</b> ${item.model}</div>
                 <b>Warranty Ends:</b> ${new Date(item.expiry).toDateString()} (${days > 0 ? days + ' days left' : 'Expired'})<br>
                 <b>Current Status:</b> <span class="badge ${item.status==='Active'?'st-active':'st-repair'}">${item.status}</span>
                 <div style="margin-top:15px; border-top:1px solid #334155; padding-top:10px;">
                     <b>FULL SERVICE HISTORY:</b><br>${logsHtml}
-                </div>
-            `;
+                </div>`;
         } else { res.style.display = "none"; }
     }
 
@@ -141,10 +183,8 @@
         let sn = document.getElementById('outSN').value.trim();
         let reason = document.getElementById('outReason').value;
         let idx = db.findIndex(x => x.sn === sn);
-
         if(idx === -1) return alert("Serial not found!");
         if(db[idx].status === 'In Repair') return alert("Already in service!");
-
         db[idx].status = 'In Repair';
         db[idx].logs.push({ issue: reason, sent: new Date().toLocaleString(), back: 'Processing...' });
         save();
@@ -154,10 +194,8 @@
     function returnFromRepair() {
         let sn = document.getElementById('inSN').value.trim();
         let idx = db.findIndex(x => x.sn === sn);
-
         if(idx === -1) return alert("Serial not found!");
         if(db[idx].status !== 'In Repair') return alert("This product is not in repair!");
-
         let currentLogs = db[idx].logs;
         currentLogs[currentLogs.length - 1].back = new Date().toLocaleString();
         db[idx].status = 'Active';
@@ -175,7 +213,6 @@
         let repair = db.filter(x => x.status === 'In Repair').length;
         let active = db.filter(x => new Date(x.expiry) > new Date()).length;
         let expired = total - active;
-
         document.getElementById('statTotal').innerText = total;
         document.getElementById('statRepair').innerText = repair;
         document.getElementById('statActive').innerText = active;
@@ -193,8 +230,6 @@
     function startScanner() {
         new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }).render(onScanSuccess);
     }
-
-    updateStats();
 </script>
 
 </body>
