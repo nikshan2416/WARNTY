@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INS - ADVANCED CRM & SEARCH</title>
+    <style>
+        :root { --neon: #00d4ff; --bg: #010409; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: radial-gradient(circle at top, #001f3f, #010409); color: #e6edf3; min-height: 100vh; }
+        .header { text-align: center; padding: 20px; border-bottom: 3px solid var(--neon); background: rgba(0,0,0,0.7); }
+        .header h1 { margin: 0; color: var(--neon); text-shadow: 0 0 10px var(--neon); font-size: 20px; }
+        .container { max-width: 500px; margin: auto; padding: 15px; }
+        .box { background: rgba(13, 25, 48, 0.95); padding: 20px; border-radius: 15px; border: 1px solid rgba(0, 212, 255, 0.2); margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        input, textarea { width: 100%; padding: 12px; margin: 8px 0; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; color: white; box-sizing: border-box; font-size: 15px; }
+        input:focus { border-color: var(--neon); outline: none; }
+        button { width: 100%; padding: 15px; border: none; border-radius: 8px; background: linear-gradient(45deg, #0072ff, #00d4ff); color: white; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 5px; }
+        .card { background: #161b22; padding: 18px; border-radius: 12px; margin-bottom: 15px; border-left: 6px solid var(--neon); border: 1px solid #30363d; position: relative; }
+        .status-badge { float: right; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .pending { background: #e3b341; color: black; }
+        .processing { background: #1f6feb; color: white; }
+        .complete { background: #238636; color: white; }
+        .info-row { font-size: 13px; margin: 6px 0; color: #8b949e; line-height: 1.4; }
+        .info-row b { color: #f0f6fc; }
+        .wa-btn { background: #238636; margin-top: 10px; }
+        .search-container { position: sticky; top: 10px; z-index: 100; margin-bottom: 20px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>I NETWORK SOLUTION</h1>
+    <small>PRIVATE LIMITED</small>
+</div>
+
+<div class="container">
+    <div id="loginBox" class="box">
+        <h3 style="text-align:center;">OFFICE LOGIN</h3>
+        <input type="text" id="userInput" placeholder="User Name">
+        <input type="password" id="passInput" placeholder="Password">
+        <button onclick="login()">Access Portal</button>
+    </div>
+
+    <div id="app" class="hidden">
+        <div class="box">
+            <h3 style="margin-top:0; color: var(--neon);">🛠 NEW REQUEST</h3>
+            <input type="text" id="cName" placeholder="Customer Name">
+            <input type="text" id="cPhone" placeholder="WhatsApp (94...)">
+            <input type="text" id="cAddress" placeholder="Address">
+            <textarea id="cIssue" placeholder="Work Description / Problem"></textarea>
+            <button onclick="createOrder()">GENERATE & SEND WHATSAPP</button>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="search" class="box" style="width:100%; margin:0; border: 2px solid var(--neon);" 
+                   placeholder="🔍 SEARCH BY NAME OR ORDER ID (#8586)..." onkeyup="render()">
+        </div>
+
+        <div id="orderList"></div>
+    </div>
+</div>
+
+<script>
+    let orders = JSON.parse(localStorage.getItem("ins_final_v7")) || [];
+    let lastID = parseInt(localStorage.getItem("ins_id_v7")) || 8585;
+
+    function save() {
+        localStorage.setItem("ins_final_v7", JSON.stringify(orders));
+        localStorage.setItem("ins_id_v7", lastID.toString());
+    }
+
+    function login() {
+        if(userInput.value.toUpperCase()==="INS" && passInput.value==="2002") {
+            loginBox.classList.add('hidden');
+            app.classList.remove('hidden');
+            render();
+        } else { alert("Login Error!"); }
+    }
+
+    function createOrder() {
+        if(!cName.value || !cPhone.value) return alert("Fill Name and Phone!");
+        lastID++;
+        let newOrder = {
+            id: lastID,
+            name: cName.value,
+            phone: cPhone.value.replace(/\D/g,''),
+            address: cAddress.value,
+            issue: cIssue.value,
+            status: "Pending",
+            time: new Date().toLocaleString(),
+            staff: "Awaiting...",
+            staffPhone: "N/A",
+            history: "Created"
+        };
+        orders.unshift(newOrder);
+        save(); render();
+        sendWA(newOrder.id);
+        cName.value = cPhone.value = cAddress.value = cIssue.value = "";
+    }
+
+    function handleHandover(id) {
+        let sName = prompt("Enter Technician Name:");
+        let sPhone = prompt("Enter Technician Phone:");
+        
+        if(sName && sPhone) {
+            let o = orders.find(x => x.id === id);
+            o.status = "Processing";
+            o.staff = sName;
+            o.staffPhone = sPhone;
+            o.time = new Date().toLocaleString();
+            save(); render(); // UI-ஐ உடனடியாக ரீ-ரெண்டர் செய்கிறது
+            sendWA(id);
+        }
+    }
+
+    function completeJob(id) {
+        let note = prompt("Final Resolution Details:");
+        if(note) {
+            let o = orders.find(x => x.id === id);
+            o.status = "Complete";
+            o.issue = o.issue + " | FIXED: " + note;
+            o.time = new Date().toLocaleString();
+            save(); render();
+            sendWA(id);
+        }
+    }
+
+    function render() {
+        let list = document.getElementById('orderList');
+        let query = search.value.toLowerCase();
+        list.innerHTML = "";
+
+        orders.forEach(o => {
+            // கஸ்டமர் ஐடி அல்லது பெயரைக் கொண்டு தேடுதல்
+            if(!o.name.toLowerCase().includes(query) && !o.id.toString().includes(query.replace('#',''))) return;
+            
+            list.innerHTML += `
+            <div class="card">
+                <span class="status-badge ${o.status.toLowerCase()}">${o.status}</span>
+                <div style="color:var(--neon); font-weight:bold; font-size:14px;">#ORDER ID: ${o.id}</div>
+                <div style="font-size:18px; margin:10px 0;"><b>${o.name}</b></div>
+                
+                <div class="info-row">📍 <b>Address:</b> ${o.address}</div>
+                <div class="info-row">🔧 <b>Problem:</b> ${o.issue}</div>
+                <div class="info-row">👤 <b>Staff:</b> ${o.staff} (${o.staffPhone})</div>
+                <div class="info-row">🕒 <b>Activity:</b> ${o.time}</div>
+
+                <div style="display:flex; gap:8px; margin-top:15px;">
+                    ${o.status==='Pending'?`<button onclick="handleHandover(${o.id})">Assign Staff</button>`:''}
+                    ${o.status==='Processing'?`<button onclick="completeJob(${o.id})" style="background:#238636;">Finish Work</button>`:''}
+                </div>
+                <button class="wa-btn" onclick="sendWA(${o.id})">📲 SEND WHATSAPP UPDATE</button>
+            </div>`;
+        });
+    }
+
+    function sendWA(id) {
+        let o = orders.find(x => x.id === id);
+        let phone = o.phone;
+        if(!phone.startsWith('94')) phone = '94' + phone.replace(/^0/, '');
+
+        let msg = `🟦 *I NETWORK SOLUTION PRIVATE LIMITED*
+━━━━━━━━━━━━━━━━━━━━━
+🎫 *SERVICE ORDER ID:* #${o.id}
+👤 *CUSTOMER:* ${o.name}
+📍 *ADDRESS:* ${o.address}
+🔧 *PROBLEM:* ${o.issue}
+━━━━━━━━━━━━━━━━━━━━━
+🚀 *STATUS:* ${o.status.toUpperCase()}
+👤 *STAFF INCHARGE:* ${o.staff}
+📞 *STAFF CONTACT:* ${o.staffPhone}
+🕒 *UPDATE TIME:* ${o.time}
+━━━━━━━━━━━━━━━━━━━━━
+*I NETWORK SOLUTION PRIVATE LIMITED*
+_Thank you for choosing INS! We care for your safety._`;
+
+        let waLink = "https://wa.me/" + phone + "?text=" + encodeURIComponent(msg);
+        window.open(waLink, '_blank');
+    }
+</script>
+
+</body>
+</html>
